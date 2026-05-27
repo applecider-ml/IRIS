@@ -1,0 +1,21 @@
+[project]
+name = "iris-spectra"
+version = "0.1.0"
+description = "IRIS — Intelligent Recognition of Interstellar Spectra"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "torch",
+    "tqdm",
+    "astropy",
+    "requests",
+]
+
+[project.scripts]
+iris-pipeline = "run_pipeline:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
