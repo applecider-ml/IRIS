@@ -4,6 +4,8 @@ iris.fritz.data_processing
 Pure functions for transforming raw Fritz API data into structured records.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from astropy.time import Time
 

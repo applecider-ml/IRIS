@@ -92,6 +92,23 @@ Options:
 
 ### As a library
 
+#### Preprocess a spectrum held in memory
+
+`process_spectrum_array` is the single source of truth for the IRIS transform. The file-based
+`process_single_spectrum` and downstream consumers (e.g. the ASTRAnet inference package) call it,
+so a spectrum is transformed identically whether it comes from a `.dat` file or straight from an API:
+
+```python
+from iris.processing import process_spectrum_array
+
+flux_4096 = process_spectrum_array(
+    wavelength, flux,                    # observer-frame arrays, any units
+    wavelength_range=(3850, 9000), interp_len=4096,
+    remove_cont=False, scale_method="robust",
+)                                        # -> float32 array, or None if the spectrum is rejected
+```
+
+
 ```python
 from iris.taxonomy import FINE_10, clean_metadata, split_anomaly_sets, build_single_pt
 from iris.quality_control import compute_qc, apply_qc_filter

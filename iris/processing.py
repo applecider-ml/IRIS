@@ -4,7 +4,7 @@ iris.processing
 Spectral preprocessing pipeline: load, deredshift, interpolate, scale.
 
 Usage:
-    from iris.processing import batch_process, process_single_spectrum
+    from iris.processing import batch_process, process_single_spectrum, process_spectrum_array
 
     out = batch_process("fritz_data_clean", "spectra_pt", label_df=my_df)
 """
@@ -113,38 +113,28 @@ def _parse_metadata_row(row: pd.Series) -> dict:
 # SINGLE SPECTRUM PROCESSING
 # ──────────────────────────────────────────────────────────────────────────────
 
-def process_single_spectrum(
-    file_path: str,
-    spectra_dir: str,
+def process_spectrum_array(
+    wavelength,
+    flux,
     wavelength_range: tuple = (WL_MIN, WL_MAX),
     interp_len: int = INTERP_LEN,
-    redshift: float = None,
-    phase: float = None,
-    instrument: str = "unknown",
-    label_class: str = "unknown",
-    taxonomy_I: str = "unknown",
-    taxonomy_II: str = "unknown",
     remove_cont: bool = True,
     scale_method: str = "robust",
-) -> "dict | None":
+) -> "np.ndarray | None":
     """
-    Process a single spectrum: load, deredshift, interpolate, normalize.
+    Core preprocessing on in-memory arrays: window, interpolate, (optionally)
+    remove continuum, scale.
 
-    Returns dict with 'file_path', 'flux', 'metadata' or None on failure.
+    This is the single source of truth for the IRIS transform; both the file-based
+    `process_single_spectrum` and downstream consumers (e.g. the ASTRAnet inference
+    package) call it, so a spectrum is transformed identically whether it comes
+    from a `.dat` file or straight from the SkyPortal API.
+
+    Returns the processed flux on the uniform grid (float32, length `interp_len`),
+    or None if the spectrum is rejected (too few points, <80% coverage, non-finite).
     """
-    full_path = os.path.join(spectra_dir, file_path)
-    if not os.path.exists(full_path):
-        return None
-
-    try:
-        raw = pd.read_csv(
-            full_path, comment="#", sep=r"\s+",
-            engine="python", header=None, usecols=[0, 1],
-        )
-        wavelength = pd.to_numeric(raw.iloc[:, 0], errors="coerce").to_numpy(dtype=float)
-        flux       = pd.to_numeric(raw.iloc[:, 1], errors="coerce").to_numpy(dtype=float)
-    except Exception:
-        return None
+    wavelength = np.asarray(wavelength, dtype=float)
+    flux       = np.asarray(flux, dtype=float)
 
     mask_finite = np.isfinite(wavelength) & np.isfinite(flux)
     wavelength  = wavelength[mask_finite]
@@ -178,6 +168,51 @@ def process_single_spectrum(
     fx_grid = scaler(fx_grid).astype(np.float32)
 
     if not np.isfinite(fx_grid).all():
+        return None
+
+    return fx_grid
+
+
+def process_single_spectrum(
+    file_path: str,
+    spectra_dir: str,
+    wavelength_range: tuple = (WL_MIN, WL_MAX),
+    interp_len: int = INTERP_LEN,
+    redshift: float = None,
+    phase: float = None,
+    instrument: str = "unknown",
+    label_class: str = "unknown",
+    taxonomy_I: str = "unknown",
+    taxonomy_II: str = "unknown",
+    remove_cont: bool = True,
+    scale_method: str = "robust",
+) -> "dict | None":
+    """
+    Process a single spectrum file: load, interpolate, normalize.
+
+    Thin file-reading wrapper around `process_spectrum_array`.
+    Returns dict with 'file_path', 'flux', 'metadata' or None on failure.
+    """
+    full_path = os.path.join(spectra_dir, file_path)
+    if not os.path.exists(full_path):
+        return None
+
+    try:
+        raw = pd.read_csv(
+            full_path, comment="#", sep=r"\s+",
+            engine="python", header=None, usecols=[0, 1],
+        )
+        wavelength = pd.to_numeric(raw.iloc[:, 0], errors="coerce").to_numpy(dtype=float)
+        flux       = pd.to_numeric(raw.iloc[:, 1], errors="coerce").to_numpy(dtype=float)
+    except Exception:
+        return None
+
+    fx_grid = process_spectrum_array(
+        wavelength, flux,
+        wavelength_range=wavelength_range, interp_len=interp_len,
+        remove_cont=remove_cont, scale_method=scale_method,
+    )
+    if fx_grid is None:
         return None
 
     return {

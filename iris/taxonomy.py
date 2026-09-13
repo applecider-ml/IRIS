@@ -145,6 +145,39 @@ CHALLENGING_KEYWORDS = {
 
 
 # =============================================================================
+# STEP 0: EXTRACT CHALLENGING SPECTRA
+# =============================================================================
+
+def extract_challenging(
+    df: pd.DataFrame,
+    class_col: str = "unique_classes",
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """
+    Extract challenging spectra: unclassified and multi-label objects.
+
+    These are removed by clean_metadata() but may be useful for evaluation.
+    Multi-label objects keep all their labels in the class column.
+    """
+    unclassified = df[df["latest_classification"].isna()].copy()
+    classified = df[df["latest_classification"].notna()]
+    multi_label = classified[classified[class_col].str.contains(r"\|", na=False)].copy()
+
+    challenging = pd.concat([unclassified, multi_label], ignore_index=True)
+
+    if verbose:
+        print(f"[challenging] Unclassified: {len(unclassified)}")
+        print(f"[challenging] Multi-label:  {len(multi_label)}")
+        print(f"[challenging] Total:        {len(challenging)}")
+        if len(multi_label) > 0:
+            print(f"\n[challenging] Multi-label examples:")
+            for label, count in multi_label[class_col].value_counts().head(10).items():
+                print(f"    {label:40s}: {count}")
+
+    return challenging
+
+
+# =============================================================================
 # STEP 1: CLEAN METADATA
 # =============================================================================
 
@@ -264,7 +297,7 @@ def split_anomaly_sets(
     """
     Split cleaned metadata into training data + anomaly evaluation sets.
 
-    Returns dict with keys: train_df, rare_df, unknown_df, bogus_df,
+    Returns dict with keys: train_df, rare_df, outliers_df, bogus_df,
     class_names, hierarchy.
     """
     mapping     = taxonomy["mapping"]
@@ -279,7 +312,7 @@ def split_anomaly_sets(
         elif label in RARE_LABELS:
             return "rare"
         elif label in UNKNOWN_LABELS:
-            return "unknown"
+            return "outliers"
         else:
             return "bogus"
 
@@ -290,14 +323,14 @@ def split_anomaly_sets(
     train_df = train_df.drop(columns=["_split"])
 
     rare_df    = df[df["_split"] == "rare"].drop(columns=["_split"]).copy()
-    unknown_df = df[df["_split"] == "unknown"].drop(columns=["_split"]).copy()
+    outliers_df = df[df["_split"] == "outliers"].drop(columns=["_split"]).copy()
     bogus_df   = df[df["_split"] == "bogus"].drop(columns=["_split"]).copy()
 
     if verbose:
         print(f"Split summary:")
         print(f"  Train   : {len(train_df):6d} samples ({len(class_names)} classes)")
         print(f"  Rare    : {len(rare_df):6d} samples (anomaly eval)")
-        print(f"  Unknown : {len(unknown_df):6d} samples (OOD eval)")
+        print(f"  Outliers: {len(outliers_df):6d} samples (OOD eval)")
         print(f"  Bogus   : {len(bogus_df):6d} samples (discarded)")
 
         if len(rare_df) > 0:
@@ -305,16 +338,16 @@ def split_anomaly_sets(
             for label, count in rare_df[raw_col].value_counts().items():
                 print(f"    {label:25s}: {count}")
 
-        if len(unknown_df) > 0:
-            print(f"\n  Unknown breakdown:")
-            for label, count in unknown_df[raw_col].value_counts().items():
+        if len(outliers_df) > 0:
+            print(f"\n  Outliers breakdown:")
+            for label, count in outliers_df[raw_col].value_counts().items():
                 print(f"    {label:25s}: {count}")
         print()
 
     return {
         "train_df":    train_df,
         "rare_df":     rare_df,
-        "unknown_df":  unknown_df,
+        "outliers_df": outliers_df,
         "bogus_df":    bogus_df,
         "class_names": class_names,
         "hierarchy":   hierarchy,
@@ -339,7 +372,7 @@ def build_all_pt_files(
     Creates:
         output_dir/main.pt      — all training data
         output_dir/rare.pt      — rare transients for anomaly eval
-        output_dir/unknown.pt   — unknown types for OOD eval
+        output_dir/outliers.pt  — outlier types for OOD eval
     """
     from iris.processing import batch_process
 
@@ -349,7 +382,7 @@ def build_all_pt_files(
     sets_to_build = [
         ("main",    splits["train_df"]),
         ("rare",    splits["rare_df"]),
-        ("unknown", splits["unknown_df"]),
+        ("outliers", splits["outliers_df"]),
     ]
 
     for name, df in sets_to_build:
@@ -503,7 +536,7 @@ def save_splits(
     """Save all split DataFrames to CSV."""
     os.makedirs(output_dir, exist_ok=True)
 
-    for name in ("train_df", "rare_df", "unknown_df", "bogus_df"):
+    for name in ("train_df", "rare_df", "outliers_df", "bogus_df"):
         df = splits[name]
         short = name.replace("_df", "")
         path = os.path.join(output_dir, f"{prefix}_{short}.csv")
@@ -530,7 +563,7 @@ def load_splits(
     """Load splits from CSV files saved by save_splits()."""
     splits = {}
 
-    for name in ("train", "rare", "unknown", "bogus"):
+    for name in ("train", "rare", "outliers", "bogus"):
         path = os.path.join(input_dir, f"{prefix}_{name}.csv")
         if os.path.exists(path):
             df = pd.read_csv(path)
