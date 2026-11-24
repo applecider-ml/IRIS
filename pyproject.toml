@@ -1,7 +1,9 @@
 [project]
 name = "iris-spectra"
 version = "0.2.0"
-description = "IRIS — Intelligent Recognition of Interstellar Spectra"
+description = "IRIS: Identification and Reduction of Interesting Spectra"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
     "numpy",

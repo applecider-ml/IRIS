@@ -4,17 +4,17 @@
 
 ```bash
 # 1. Submit a test fetch job to SLURM
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 sbatch --export=FRITZ_TOKEN=your-token-here \
   --job-name=iris-test \
-  --account=bcrv-delta-cpu \
+  --account=<your-account> \
   --partition=cpu \
   --ntasks=1 --cpus-per-task=4 --mem=8G --time=00:30:00 \
   --output=$HOME/iris_test_%j.out \
   --error=$HOME/iris_test_%j.err \
   --wrap='
 mkdir -p ~/iris_test
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 python -c "
 from iris.fritz.client import FritzClient
 from iris.fritz.pipeline import run_pipeline, discover_source_ids
@@ -94,11 +94,11 @@ If spectra are already fetched in `fritz_data_*` folders, run the pipeline from 
 Output goes to `~/iris_clean` (.dat files) and `~/iris_metadata` (CSVs).
 
 ```bash
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 
 # Full pipeline (gather + QC + split + .pt)
 python run_pipeline.py \
-    --data-dir /projects/bcrv/asasli/later/Spectra \
+    --data-dir /path/to/spectra \
     --clean-dir ~/iris_clean \
     --metadata-dir ~/iris_metadata \
     --output-dir ~/iris_metadata/spectra_pt \
@@ -106,7 +106,7 @@ python run_pipeline.py \
 
 # Skip QC if you want all cleaned spectra without filtering
 python run_pipeline.py \
-    --data-dir /projects/bcrv/asasli/later/Spectra \
+    --data-dir /path/to/spectra \
     --clean-dir ~/iris_clean \
     --metadata-dir ~/iris_metadata \
     --output-dir ~/iris_metadata/spectra_pt \
@@ -122,18 +122,18 @@ ls ~/iris_metadata/spectra_pt/  # .pt tensors
 ### Via SLURM
 
 ```bash
-sbatch --export=ALL,DATA_DIR=/projects/bcrv/asasli/later/Spectra,SKIP_FETCH=1 \
+sbatch --export=ALL,DATA_DIR=/path/to/spectra,SKIP_FETCH=1 \
     --wrap='
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 python run_pipeline.py \
-    --data-dir /projects/bcrv/asasli/later/Spectra \
+    --data-dir /path/to/spectra \
     --clean-dir ~/iris_clean \
     --metadata-dir ~/iris_metadata \
     --output-dir ~/iris_metadata/spectra_pt \
     --scale-method both
 ' \
     --job-name=iris-process \
-    --account=bcrv-delta-cpu \
+    --account=<your-account> \
     --partition=cpu \
     --cpus-per-task=16 --mem=64G --time=02:00:00 \
     --output=logs/iris_process_%j.out \
@@ -167,7 +167,7 @@ sbatch --export=ALL,SKIP_FETCH=1,SKIP_GATHER=1,SKIP_QC=1 examples/submit_delta.s
 ### GPU job (for future training steps)
 
 ```bash
-sbatch --partition=gpuA100x4 --gpus=1 --account=bcrv-delta-gpu examples/submit_delta.sh
+sbatch --partition=gpuA100x4 --gpus=1 --account=<your-gpu-account> examples/submit_delta.sh
 ```
 
 ### Monitor your job
@@ -186,11 +186,11 @@ sacct -j <JOB_ID> --format=JobID,Elapsed,MaxRSS,State
 ## Interactive session (for debugging)
 
 ```bash
-srun --account=bcrv-delta-cpu --partition=cpu-interactive \
+srun --account=<your-account> --partition=cpu-interactive \
      --nodes=1 --cpus-per-task=8 --mem=32G --time=01:00:00 --pty bash
 
 # Then run manually:
 export FRITZ_TOKEN="your-token-here"
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 python examples/fetch_spectra.py --output-dir ~/iris_test
 ```

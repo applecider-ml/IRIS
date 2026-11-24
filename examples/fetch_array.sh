@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=iris_array
-#SBATCH --account=bcrv-delta-cpu
+#SBATCH --account=YOUR_ACCOUNT        # set your allocation
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -36,7 +36,7 @@
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────
-PROJECT_DIR="${PROJECT_DIR:-/projects/bcrv/asasli/IRIS}"
+PROJECT_DIR="${PROJECT_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
 ID_FILE="${ID_FILE:-}"
 OUTPUT_BASE="${OUTPUT_BASE:-fritz_data}"
 MAX_WORKERS="${MAX_WORKERS:-1}"

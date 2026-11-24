@@ -1,7 +1,8 @@
 """
 iris.processing
 ===============
-Spectral preprocessing pipeline: load, deredshift, interpolate, scale.
+Spectral preprocessing pipeline: load, interpolate on a uniform observed-frame grid, scale.
+The spectrum stays in the observed frame; the redshift is carried as metadata.
 
 Usage:
     from iris.processing import batch_process, process_single_spectrum, process_spectrum_array
@@ -118,17 +119,18 @@ def process_spectrum_array(
     flux,
     wavelength_range: tuple = (WL_MIN, WL_MAX),
     interp_len: int = INTERP_LEN,
-    remove_cont: bool = True,
+    remove_cont: bool = False,
     scale_method: str = "robust",
 ) -> "np.ndarray | None":
     """
     Core preprocessing on in-memory arrays: window, interpolate, (optionally)
     remove continuum, scale.
 
-    This is the single source of truth for the IRIS transform; both the file-based
-    `process_single_spectrum` and downstream consumers (e.g. the ASTRAnet inference
-    package) call it, so a spectrum is transformed identically whether it comes
-    from a `.dat` file or straight from the SkyPortal API.
+    This is the single source of truth for the IRIS transform: the file-based
+    `process_single_spectrum` calls it, so a spectrum is transformed identically
+    whether it comes from a `.dat` file or straight from the SkyPortal API. With the
+    defaults (no continuum removal, robust scaling) the output equals the input of
+    ASTRANet (`astranet.preprocess.preprocess`).
 
     Returns the processed flux on the uniform grid (float32, length `interp_len`),
     or None if the spectrum is rejected (too few points, <80% coverage, non-finite).
@@ -184,7 +186,7 @@ def process_single_spectrum(
     label_class: str = "unknown",
     taxonomy_I: str = "unknown",
     taxonomy_II: str = "unknown",
-    remove_cont: bool = True,
+    remove_cont: bool = False,
     scale_method: str = "robust",
 ) -> "dict | None":
     """
@@ -240,7 +242,7 @@ def batch_process(
     label_path = None,
     wavelength_range: tuple = (WL_MIN, WL_MAX),
     interp_len: int = INTERP_LEN,
-    remove_cont: bool = True,
+    remove_cont: bool = False,
     scale_method: str = "robust",
 ) -> "str | None":
     """

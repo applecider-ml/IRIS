@@ -42,21 +42,21 @@ pip install -e .
 
 ## Usage
 
-### On Delta (SLURM)
+### On a SLURM cluster
 
 ```bash
 # 1. Quick test — fetch 10 spectra
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 sbatch --export=FRITZ_TOKEN=your-token-here \
   --job-name=iris-test \
-  --account=bcrv-delta-cpu \
+  --account=<your-account> \
   --partition=cpu \
   --ntasks=1 --cpus-per-task=4 --mem=8G --time=00:30:00 \
   --output=$HOME/iris_test_%j.out \
   --error=$HOME/iris_test_%j.err \
   --wrap='
 mkdir -p ~/iris_test
-cd /projects/bcrv/asasli/IRIS
+cd /path/to/IRIS
 python -c "
 from iris.fritz.client import FritzClient
 from iris.fritz.pipeline import run_pipeline, discover_source_ids
@@ -95,8 +95,8 @@ Options:
 #### Preprocess a spectrum held in memory
 
 `process_spectrum_array` is the single source of truth for the IRIS transform. The file-based
-`process_single_spectrum` and downstream consumers (e.g. the ASTRAnet inference package) call it,
-so a spectrum is transformed identically whether it comes from a `.dat` file or straight from an API:
+`process_single_spectrum` calls it, so a spectrum is transformed identically whether it comes from a
+`.dat` file or straight from an API:
 
 ```python
 from iris.processing import process_spectrum_array
@@ -149,15 +149,16 @@ Each `.pt` file contains:
 
 Wavelength grid: 3850–9000 A, 4096 points.
 
-## GitHub Actions
+## Settings for ASTRANet
 
-The workflow runs manually via `workflow_dispatch`:
+[ASTRANet](https://github.com/applecider-ml/astranet) reads spectra in the observed frame on the IRIS
+grid: 3850 to 9000 A, 4096 points, no continuum removal, robust scaling (5th and 95th percentiles).
+These are the defaults of `process_spectrum_array` and of the `.pt` builders, and
+`python run_pipeline.py --scale-method robust` writes the tensors in this form. The redshift and the
+phase are stored as metadata and enter ASTRANet as model inputs.
 
-```
-Actions → IRIS → Run workflow → select options
-```
-
-Produces artifacts: `.pt` files + split CSVs.
+ASTRANet groups the FINE_10 classes into seven: `SN_Ia` to Ia; `SN_II`, `SN_IIn`, `SN_IIb` to II;
+`SN_Ibc`, `SN_Ibn` to Ibc; `SLSN`, `AGN`, `TDE`, `CV` unchanged.
 
 ## Examples
 
@@ -177,3 +178,7 @@ iris/
     ├── pipeline.py      # Batch download orchestration
     └── storage.py       # .dat and CSV persistence
 ```
+
+## License
+
+MIT, see `LICENSE`.

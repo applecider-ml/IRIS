@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=IRIS
-#SBATCH --account=bcrv-delta-cpu
+#SBATCH --account=YOUR_ACCOUNT        # set your allocation
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -28,9 +28,9 @@
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────
-PROJECT_DIR="${PROJECT_DIR:-/projects/bcrv/asasli/IRIS}"
-DATA_DIR="${DATA_DIR:-/projects/bcrv/asasli/later/Spectra}"
-SCALE_METHOD="${SCALE_METHOD:-both}"
+PROJECT_DIR="${PROJECT_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
+DATA_DIR="${DATA_DIR:-$PROJECT_DIR/data}"
+SCALE_METHOD="${SCALE_METHOD:-robust}"
 SKIP_QC="${SKIP_QC:-0}"
 SKIP_FETCH="${SKIP_FETCH:-0}"
 SKIP_GATHER="${SKIP_GATHER:-0}"
